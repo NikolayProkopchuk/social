@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -143,13 +144,19 @@ FROM posts p
 LEFT JOIN comments c ON p.id = c.post_id
 LEFT JOIN user_follower uf ON p.user_id = uf.follower_id
 WHERE uf.user_id = $1
+AND (p.title ILIKE '%' || $2 || '%' OR p.content ILIKE '%' || $2 || '%')
+AND (p.tags @> $3 OR $3 IS NULL)
 GROUP BY p.id, p.created_at
 ORDER BY p.created_at ` + paginatedQuery.Sort +
-		` LIMIT $2 OFFSET $3`
+		` LIMIT $4 OFFSET $5`
+	log.Print(query)
+	log.Print(paginatedQuery)
 	rows, err := s.db.QueryContext(
 		ctx,
 		query,
 		user.ID,
+		paginatedQuery.Search,
+		paginatedQuery.Tags,
 		paginatedQuery.Limit,
 		paginatedQuery.Offset)
 	if err != nil {
