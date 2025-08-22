@@ -1,13 +1,16 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/NikolayProkopchuk/social/docs" // This line is used by Swag CLI to generate docs
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
+	"go.uber.org/zap"
 )
 
 var version = "0.0.1"
@@ -15,22 +18,33 @@ var version = "0.0.1"
 type application struct {
 	config config
 	store  *store.Storage
+	logger *zap.SugaredLogger
 }
 
 type config struct {
 	address string
-	db      *DbConfig
+	db      *dbConfig
 	env     string
+	apiUrl  string
+	mail    *mailConfig
 }
 
-type DbConfig struct {
+type dbConfig struct {
 	url         string
 	maxOpenCons int
 	maxIdleCons int
 	maxIdleTime string
 }
 
+type mailConfig struct {
+	exp time.Duration
+}
+
 func (app *application) mount() http.Handler {
+	docs.SwaggerInfo.Version = version
+	docs.SwaggerInfo.Host = app.config.apiUrl
+	docs.SwaggerInfo.BasePath = "/v1"
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -40,6 +54,8 @@ func (app *application) mount() http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
 
+		docsUrl := fmt.Sprintf("%s/swagger/doc.json", app.config.address)
+		r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL(docsUrl)))
 		r.Route("/posts", func(r chi.Router) {
 			r.Post("/", app.createPostHandler)
 			r.Route("/{postID}", func(r chi.Router) {
@@ -66,6 +82,10 @@ func (app *application) mount() http.Handler {
 				r.Get("/feed", app.getUserFeedHandler)
 			})
 		})
+
+		r.Route("/authentication", func(r chi.Router) {
+			r.Post("/user", app.registerUserHandler)
+		})
 	})
 
 	return r
@@ -79,6 +99,6 @@ func (app *application) run(mux http.Handler) error {
 		ReadTimeout:  time.Second * 10,
 		IdleTimeout:  time.Minute,
 	}
-	log.Println("Starting server on", app.config.address)
+	app.logger.Infow("Starting server on", "addr:", app.config.address, "env:", app.config.env)
 	return srv.ListenAndServe()
 }

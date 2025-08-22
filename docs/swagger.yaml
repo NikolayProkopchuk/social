@@ -1,0 +1,198 @@
+basePath: /v1
+definitions:
+  store.PostWithMetadata:
+    properties:
+      commentsCount:
+        type: integer
+      content:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      userId:
+        type: integer
+    type: object
+  store.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a sample server Gopher Social.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Gopher Social API
+paths:
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Fetches a user profile by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/store.User'
+        "400":
+          description: Bad Request
+          schema: {}
+        "404":
+          description: Not Found
+          schema: {}
+        "500":
+          description: Internal Server Error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Fetches a user profile
+      tags:
+      - users
+  /users/{id}/follow:
+    put:
+      consumes:
+      - application/json
+      description: Follow a user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: User followed successfully
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema: {}
+        "404":
+          description: Not Found
+          schema: {}
+        "500":
+          description: Internal Server Error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Follwow a user
+      tags:
+      - users
+  /users/{userID}/unfollow:
+    put:
+      consumes:
+      - application/json
+      description: Unfollows a user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: userID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: User unfollowed
+          schema:
+            type: string
+        "400":
+          description: Bad request
+          schema: {}
+        "404":
+          description: User not found
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Unfollows a user
+      tags:
+      - users
+  /users/feed:
+    get:
+      consumes:
+      - application/json
+      description: Fetches the user feed
+      parameters:
+      - description: Since
+        in: query
+        name: since
+        type: string
+      - description: Until
+        in: query
+        name: until
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Sort
+        in: query
+        name: sort
+        type: string
+      - description: Tags
+        in: query
+        name: tags
+        type: string
+      - description: Search
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/store.PostWithMetadata'
+            type: array
+        "400":
+          description: Bad Request
+          schema: {}
+        "500":
+          description: Internal Server Error
+          schema: {}
+      security:
+      - ApiKeyAuth: []
+      summary: Fetches the user feed
+      tags:
+      - feed
+securityDefinitions:
+  ApiKeyAuth:
+    description: API Key for authorization
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

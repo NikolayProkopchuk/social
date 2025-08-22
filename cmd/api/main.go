@@ -3,17 +3,35 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"time"
 
 	"github.com/NikolayProkopchuk/social/internal/db"
 	"github.com/NikolayProkopchuk/social/internal/env"
 	"github.com/NikolayProkopchuk/social/internal/store"
+	"go.uber.org/zap"
 )
 
+//	@title			Gopher Social API
+//	@description	This is a sample server Gopher Social.
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.url	http://www.swagger.io/support
+//	@contact.email	support@swagger.io
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @BasePath					/v1
+// @securityDefinitions.apikey	ApiKeyAuth
+// @in							header
+// @name						Authorization
+// @description				API Key for authorization
 func main() {
 	cfg := config{
 		address: env.GetString("ADDR", ":8080"),
-		db: &DbConfig{
+		apiUrl:  env.GetString("API_URL", "localhost:8080"),
+		db: &dbConfig{
 			url: fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 				env.GetString("DB_USER", "admin"),
 				env.GetString("DB_PASSWORD", "admin_pwd"),
@@ -25,7 +43,14 @@ func main() {
 			maxIdleTime: env.GetString("DB_MAX_IDLE_TIME", "15m"),
 		},
 		env: env.GetString("ENV", "dev"),
+		mail: &mailConfig{
+			exp: 24 * time.Hour,
+		},
 	}
+
+	logger := zap.Must(zap.NewProduction()).Sugar()
+	defer logger.Sync()
+
 	d, err := db.New(
 		cfg.db.url,
 		cfg.db.maxOpenCons,
@@ -35,18 +60,19 @@ func main() {
 	defer func(d *sql.DB) {
 		err := d.Close()
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 	}(d)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
-	log.Println("DB connected")
+	logger.Info("DB connected")
 
 	a := application{
 		config: cfg,
 		store:  store.NewStorage(d),
+		logger: logger,
 	}
 	mux := a.mount()
-	log.Fatal(a.run(mux))
+	logger.Fatal(a.run(mux))
 }
