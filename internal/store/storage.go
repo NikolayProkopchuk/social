@@ -23,10 +23,9 @@ type Storage struct {
 		GetUserFeed(context.Context, *User, *PaginatedFeedQuery) ([]*PostWithMetadata, error)
 	}
 	Users interface {
+		Activate(context.Context, string) error
 		GetByID(context.Context, int64) (*User, error)
 		CreateAndInvite(context.Context, *User, string, time.Duration) error
-		create(context.Context, *sql.Tx, *User) error
-		createUserInvitation(ctx context.Context, trx *sql.Tx, userID int64, inviteCode string, expirationTime time.Duration) error
 	}
 	Comments interface {
 		GetByPostID(context.Context, int64) ([]*Comment, error)

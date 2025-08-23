@@ -23,7 +23,7 @@ import (
 //	@Failure		500		{object}	error
 //	@Router			/authentication/user [post]
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
-	var payload RegistrerUserPayload
+	var payload RegisterUserPayload
 	if err := readJSON(w, r, &payload); err != nil {
 		app.badRequestError(w, r, err)
 		return
@@ -43,6 +43,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	plainInviteCode := uuid.New().String()
+	app.logger.Infof("Generated invite code for %s: %s", user.Email, plainInviteCode)
 	hash := sha256.Sum256([]byte(plainInviteCode))
 	inviteCode := hex.EncodeToString(hash[:])
 
@@ -60,7 +61,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-type RegistrerUserPayload struct {
+type RegisterUserPayload struct {
 	Username string `json:"username" validate:"required,min=3,max=100"`
 	Password string `json:"password" validate:"required,min=8,max=100"`
 	Email    string `json:"email" validate:"required,email"`

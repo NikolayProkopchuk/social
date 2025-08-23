@@ -117,3 +117,49 @@ func (s *UserStore) createUserInvitation(ctx context.Context, trx *sql.Tx, userI
 	}
 	return nil
 }
+
+func (s *UserStore) Activate(ctx context.Context, inviteCodeHashed string) error {
+	return withTrx(ctx, s.db, func(trx *sql.Tx) error {
+		if err := s.activate(ctx, trx, inviteCodeHashed); err != nil {
+			return err
+		}
+		if err := s.deleteInvite(ctx, trx, inviteCodeHashed); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func (s *UserStore) activate(ctx context.Context, tx *sql.Tx, inviteCodeHashed string) error {
+	ctx, cancel := context.WithTimeout(ctx, QueryTimoutDuration)
+	defer cancel()
+	query := `
+UPDATE users SET active = TRUE
+WHERE id = (
+	SELECT user_id FROM user_invitation
+	WHERE invite_code = $1 AND expiration_time > NOW()
+)`
+	res, err := tx.ExecContext(ctx, query, inviteCodeHashed)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *UserStore) deleteInvite(ctx context.Context, tx *sql.Tx, inviteCodeHashed string) error {
+	ctx, cancel := context.WithTimeout(ctx, QueryTimoutDuration)
+	defer cancel()
+	query := `DELETE FROM user_invitation WHERE invite_code = $1`
+	_, err := tx.ExecContext(ctx, query, inviteCodeHashed)
+	if err != nil {
+		return err
+	}
+	return nil
+}

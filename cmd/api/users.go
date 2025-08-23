@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -9,6 +11,51 @@ import (
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/go-chi/chi/v5"
 )
+
+// ActivateUser godoc
+//
+//	@Summary		Activates/Register a user
+//	@Description	Activates/Register a user by invitation token
+//	@Tags			users
+//	@Produce		json
+//	@Param			token	path		string	true	"Invitation token"
+//	@Success		204		{string}	string	"User activated"
+//	@Failure		404		{object}	error
+//	@Failure		500		{object}	error
+//	@Security		ApiKeyAuth
+//	@Router			/users/active [put]
+func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
+	var payload ActivateUserPayload
+	if err := readJSON(w, r, &payload); err != nil {
+		app.badRequestError(w, r, err)
+		return
+	}
+	if err := Validator.Struct(payload); err != nil {
+		app.badRequestError(w, r, err)
+		return
+	}
+
+	hash := sha256.Sum256([]byte(payload.InviteCode))
+	inviteCodeHashed := hex.EncodeToString(hash[:])
+
+	if err := app.store.Users.Activate(r.Context(), inviteCodeHashed); err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			app.resourceNotFound(w, r, err)
+		default:
+			app.internalServerError(w, r, err)
+		}
+		return
+	}
+
+	if err := app.jsonResponse(w, http.StatusNoContent, ""); err != nil {
+		app.internalServerError(w, r, err)
+	}
+}
+
+type ActivateUserPayload struct {
+	InviteCode string `json:"token" validate:"required,uuid"`
+}
 
 // getUserHandler godoc
 //
