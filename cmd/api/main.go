@@ -7,6 +7,7 @@ import (
 
 	"github.com/NikolayProkopchuk/social/internal/db"
 	"github.com/NikolayProkopchuk/social/internal/env"
+	"github.com/NikolayProkopchuk/social/internal/mailer"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"go.uber.org/zap"
 )
@@ -45,7 +46,12 @@ func main() {
 		env: env.GetString("ENV", "dev"),
 		mail: &mailConfig{
 			exp: 24 * time.Hour,
+			fromEmail: env.GetString("FROM_EMAIL", ""),
+			sendgrid: sendgridConfig{
+				apiKey:   env.GetString("API_KEY", ""),
+			},
 		},
+		frontednURL: env.GetString("FRONTEND_URL", "http://localhost:4000"),
 	}
 
 	logger := zap.Must(zap.NewProduction()).Sugar()
@@ -68,10 +74,13 @@ func main() {
 	}
 	logger.Info("DB connected")
 
+	mailerClient := mailer.NewSendGridMailer(cfg.mail.fromEmail, cfg.mail.sendgrid.apiKey)
+
 	a := application{
 		config: cfg,
 		store:  store.NewStorage(d),
 		logger: logger,
+		mailer: mailerClient,
 	}
 	mux := a.mount()
 	logger.Fatal(a.run(mux))

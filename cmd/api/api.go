@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/NikolayProkopchuk/social/docs" // This line is used by Swag CLI to generate docs
+	"github.com/NikolayProkopchuk/social/internal/mailer"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,6 +20,7 @@ type application struct {
 	config config
 	store  *store.Storage
 	logger *zap.SugaredLogger
+	mailer mailer.Client
 }
 
 type config struct {
@@ -27,6 +29,7 @@ type config struct {
 	env     string
 	apiUrl  string
 	mail    *mailConfig
+	frontednURL string
 }
 
 type dbConfig struct {
@@ -37,7 +40,13 @@ type dbConfig struct {
 }
 
 type mailConfig struct {
+	sendgrid  sendgridConfig
+	fromEmail string
 	exp time.Duration
+}
+
+type sendgridConfig struct {
+	apiKey    string
 }
 
 func (app *application) mount() http.Handler {

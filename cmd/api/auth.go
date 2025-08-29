@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/NikolayProkopchuk/social/internal/mailer"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/google/uuid"
 )
@@ -55,6 +56,21 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		app.internalServerError(w, r, err)
 		return
 	}
+	isProdEnv := app.config.env == "prodaction"
+	vars := struct {
+		username   string
+		activationUrl string
+	}{
+		username:  user.Username,
+		activationUrl: app.config.frontednURL + "/activate?code=" + plainInviteCode,
+	}
+
+	if err := app.mailer.Send(mailer.UserInviteTemplate, user.Username, user.Email, vars, !isProdEnv); err != nil {
+		app.logger.Errorw("unable to send email", "error", err)
+		app.internalServerError(w, r, err)
+		return
+	}
+	
 	if err := app.jsonResponse(w, http.StatusCreated, user); err != nil {
 		app.internalServerError(w, r, err)
 		return
