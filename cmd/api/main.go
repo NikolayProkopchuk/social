@@ -52,6 +52,12 @@ func main() {
 			},
 		},
 		frontednURL: env.GetString("FRONTEND_URL", "http://localhost:4000"),
+		auth: &authConfig{
+			basic: basicAuth{
+				username: env.GetString("BASIC_AUTH_USERNAME", "admin"),
+				password: env.GetString("BASIC_AUTH_PASSWORD", "password"),
+			},
+		},
 	}
 
 	logger := zap.Must(zap.NewProduction()).Sugar()

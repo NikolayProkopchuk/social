@@ -30,6 +30,7 @@ type config struct {
 	apiUrl  string
 	mail    *mailConfig
 	frontednURL string
+	auth    *authConfig
 }
 
 type dbConfig struct {
@@ -49,6 +50,15 @@ type sendgridConfig struct {
 	apiKey    string
 }
 
+type authConfig struct {
+	basic basicAuth
+}
+
+type basicAuth struct {
+	username string
+	password string
+}
+
 func (app *application) mount() http.Handler {
 	docs.SwaggerInfo.Version = version
 	docs.SwaggerInfo.Host = app.config.apiUrl
@@ -61,7 +71,7 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Route("/v1", func(r chi.Router) {
-		r.Get("/health", app.healthCheckHandler)
+		r.With(app.basicAuthMiddleware()).Get("/health", app.healthCheckHandler)
 
 		docsUrl := fmt.Sprintf("%s/swagger/doc.json", app.config.address)
 		r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL(docsUrl)))

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 )
 
@@ -24,7 +23,6 @@ func (app *application) badRequestError(w http.ResponseWriter, r *http.Request, 
 }
 
 func (app *application) conflictError(w http.ResponseWriter, r *http.Request, err error) {
-	log.Printf("conflict: %s %s error: %s\n", r.Method, r.URL.Path, err)
 	app.logger.Errorf("conflict",
 		"method", r.Method,
 		"path", r.URL.Path,
@@ -34,11 +32,29 @@ func (app *application) conflictError(w http.ResponseWriter, r *http.Request, er
 }
 
 func (app *application) resourceNotFound(w http.ResponseWriter, r *http.Request, err error) {
-	log.Printf("resourse not found: %s %s error: %s\n", r.Method, r.URL.Path, err)
 	app.logger.Warnf("resource not found",
 		"method", r.Method,
 		"path", r.URL.Path,
 		"error", err.Error(),
 	)
 	writeJSONError(w, http.StatusNotFound, "resource not found")
+}
+
+func (app *application) unauthorizedError(w http.ResponseWriter, r *http.Request, err error) {
+	app.logger.Warnf("unauthorized",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"error", err.Error(),
+	)
+	writeJSONError(w, http.StatusUnauthorized, err.Error())
+}
+
+func (app *application) unauthorizedBasicError(w http.ResponseWriter, r *http.Request, err error) {
+	app.logger.Warnf("unauthorized",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"error", err.Error(),
+	)
+	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted", charset="UTF-8"`)
+	writeJSONError(w, http.StatusUnauthorized, err.Error())
 }
