@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/NikolayProkopchuk/social/docs" // This line is used by Swag CLI to generate docs
+	"github.com/NikolayProkopchuk/social/internal/auth"
 	"github.com/NikolayProkopchuk/social/internal/mailer"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,7 @@ type application struct {
 	store  *store.Storage
 	logger *zap.SugaredLogger
 	mailer mailer.Client
+	authenticator   auth.Authenticator
 }
 
 type config struct {
@@ -52,6 +54,14 @@ type sendgridConfig struct {
 
 type authConfig struct {
 	basic basicAuth
+	tokenCfg tokenConfig
+}
+
+type tokenConfig struct {
+	secret   string
+	audience string
+	issuer   string
+	exp      time.Duration
 }
 
 type basicAuth struct {
@@ -105,6 +115,7 @@ func (app *application) mount() http.Handler {
 
 		r.Route("/authentication", func(r chi.Router) {
 			r.Post("/user", app.registerUserHandler)
+			r.Post("/token", app.createTokenHandler)
 		})
 	})
 

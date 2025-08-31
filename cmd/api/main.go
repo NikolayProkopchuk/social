@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/NikolayProkopchuk/social/internal/auth"
 	"github.com/NikolayProkopchuk/social/internal/db"
 	"github.com/NikolayProkopchuk/social/internal/env"
 	"github.com/NikolayProkopchuk/social/internal/mailer"
@@ -57,6 +58,12 @@ func main() {
 				username: env.GetString("BASIC_AUTH_USERNAME", "admin"),
 				password: env.GetString("BASIC_AUTH_PASSWORD", "password"),
 			},
+			tokenCfg: tokenConfig{
+				secret:   env.GetString("AUTH_TOKEN_SECRET", "example"),
+				issuer:   env.GetString("AUTH_TOKEN_ISSUER", "gopher.social"),
+				audience: env.GetString("AUTH_TOKEN_AUDIENCE", "gopher.social"),
+				exp:      time.Hour,
+			},
 		},
 	}
 
@@ -81,12 +88,14 @@ func main() {
 	logger.Info("DB connected")
 
 	mailerClient := mailer.NewSendGridMailer(cfg.mail.fromEmail, cfg.mail.sendgrid.apiKey)
+	authenticator := auth.NewJWTAuthenticator(cfg.auth.tokenCfg.secret, cfg.auth.tokenCfg.issuer, cfg.auth.tokenCfg.issuer)
 
 	a := application{
 		config: cfg,
 		store:  store.NewStorage(d),
 		logger: logger,
 		mailer: mailerClient,
+		authenticator:   authenticator,
 	}
 	mux := a.mount()
 	logger.Fatal(a.run(mux))
