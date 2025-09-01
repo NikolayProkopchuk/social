@@ -21,6 +21,7 @@ type createPostRequest struct {
 }
 
 func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request) {
+	loggedUser := app.getUserFromContext(r)
 	var createPostDto createPostRequest
 	if err := readJSON(w, r, &createPostDto); err != nil {
 		app.badRequestError(w, r, err)
@@ -33,7 +34,7 @@ func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	post := store.Post{
-		UserID:  2,
+		UserID:  loggedUser.ID,
 		Title:   createPostDto.Title,
 		Content: createPostDto.Content,
 		Tags:    createPostDto.Tags,

@@ -26,9 +26,7 @@ import (
 //	@Security		ApiKeyAuth
 //	@Router			/users/feed [get]
 func (app *application) getUserFeedHandler(w http.ResponseWriter, r *http.Request) {
-	user := store.User{
-		ID: 1,
-	}
+	user := app.getUserFromContext(r)
 	paginatedFeedQuery, err := store.ParsePaginatedFeedQuery(r)
 	if err != nil {
 		app.badRequestError(w, r, err)
@@ -38,7 +36,7 @@ func (app *application) getUserFeedHandler(w http.ResponseWriter, r *http.Reques
 		app.badRequestError(w, r, err)
 		return
 	}
-	feed, err := app.store.Posts.GetUserFeed(r.Context(), &user, paginatedFeedQuery)
+	feed, err := app.store.Posts.GetUserFeed(r.Context(), user, paginatedFeedQuery)
 	if err != nil {
 		app.internalServerError(w, r, err)
 		return

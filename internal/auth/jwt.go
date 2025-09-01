@@ -23,10 +23,14 @@ func (j *JWTAuthenticator) GenerateToken(claims jwt.Claims) (string, error) {
 }
 
 func (j *JWTAuthenticator) ValidateToken(tokenString string) (*jwt.Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrTokenMalformed
 		}
 		return []byte(j.secret), nil
-	}, jwt.WithAudience(j.aud), jwt.WithIssuer(j.iss))
+	},
+	jwt.WithExpirationRequired(),
+	jwt.WithAudience(j.aud),
+	jwt.WithIssuer(j.iss),
+	jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -78,31 +77,8 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) userContextMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64)
-		if err != nil {
-			app.badRequestError(w, r, err)
-			return
-		}
-		user, err := app.store.Users.GetByID(r.Context(), userID)
-		if err != nil {
-			switch {
-			case errors.Is(err, store.ErrNotFound):
-				app.resourceNotFound(w, r, err)
-				return
-			default:
-				app.internalServerError(w, r, err)
-			}
-			return
-		}
-		ctx := context.WithValue(r.Context(), "user", user)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 func (app *application) getUserFromContext(r *http.Request) *store.User {
-	value := r.Context().Value("user")
+	value := r.Context().Value(userContextKey)
 	return value.(*store.User)
 }
 
@@ -121,13 +97,26 @@ func (app *application) getUserFromContext(r *http.Request) *store.User {
 //	@Security		ApiKeyAuth
 //	@Router			/users/{id}/follow [put]
 func (app *application) followUserHandler(w http.ResponseWriter, r *http.Request) {
-	user := app.getUserFromContext(r)
-	//todo get authenticated user
-	userLoggedIn := &store.User{
-		ID: 2,
+	userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64)
+	if err != nil {
+		app.badRequestError(w, r, err)
+		return
 	}
+	followedUser, err := app.store.Users.GetByID(r.Context(), userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			app.resourceNotFound(w, r, err)
+			return
+		default:
+			app.internalServerError(w, r, err)
+		}
+		return
+	}
+	//todo get authenticated user
+	userLoggedIn := app.getUserFromContext(r)
 
-	if err := app.store.Followers.Follow(r.Context(), user, userLoggedIn); err != nil {
+	if err := app.store.Followers.Follow(r.Context(), followedUser, userLoggedIn); err != nil {
 		switch {
 		case errors.Is(err, store.ErrConflict):
 			app.conflictError(w, r, err)
@@ -137,9 +126,7 @@ func (app *application) followUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := app.jsonResponse(w, http.StatusNoContent, nil); err != nil {
-		app.internalServerError(w, r, err)
-	}
+	app.noContentResponse(w)
 }
 
 // UnfollowUser godoc
@@ -156,18 +143,28 @@ func (app *application) followUserHandler(w http.ResponseWriter, r *http.Request
 //	@Security		ApiKeyAuth
 //	@Router			/users/{userID}/unfollow [put]
 func (app *application) unfollowUserHandler(w http.ResponseWriter, r *http.Request) {
-	user := app.getUserFromContext(r)
-	//todo get authenticated user
-	userLoggedIn := &store.User{
-		ID: 2,
+	userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64)
+	if err != nil {
+		app.badRequestError(w, r, err)
+		return
 	}
+	user, err := app.store.Users.GetByID(r.Context(), userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			app.resourceNotFound(w, r, err)
+		default:
+			app.internalServerError(w, r, err)
+		}
+		return
+	}
+	//todo get authenticated user
+	userLoggedIn := app.getUserFromContext(r)
 
 	if err := app.store.Followers.Unfollow(r.Context(), user, userLoggedIn); err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}
 
-	if err := app.jsonResponse(w, http.StatusNoContent, nil); err != nil {
-		app.internalServerError(w, r, err)
-	}
+	app.noContentResponse(w)
 }

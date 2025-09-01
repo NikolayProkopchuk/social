@@ -11,8 +11,8 @@ type CommentPayload struct {
 }
 
 func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Request) {
+	user := app.getUserFromContext(r)
 	post := getPostFromCtx(r)
-	userID := 1
 	commentPayload := &CommentPayload{}
 	if err := readJSON(w, r, commentPayload); err != nil {
 		app.badRequestError(w, r, err)
@@ -25,7 +25,7 @@ func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Requ
 	comment := &store.Comment{
 		PostID: post.ID,
 		User: &store.User{
-			ID: int64(userID),
+			ID: user.ID,
 		},
 		Content: commentPayload.Content,
 	}
