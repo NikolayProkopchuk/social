@@ -2,18 +2,17 @@ package auth
 
 import "github.com/golang-jwt/jwt/v5"
 
-
 type JWTAuthenticator struct {
-	secret       string
-	aud string
-	iss string
+	secret string
+	aud    string
+	iss    string
 }
 
 func NewJWTAuthenticator(secret, audience, issuer string) *JWTAuthenticator {
 	return &JWTAuthenticator{
 		secret: secret,
-		aud: audience,
-		iss: issuer,
+		aud:    audience,
+		iss:    issuer,
 	}
 }
 
@@ -29,8 +28,8 @@ func (j *JWTAuthenticator) ValidateToken(tokenString string) (*jwt.Token, error)
 		}
 		return []byte(j.secret), nil
 	},
-	jwt.WithExpirationRequired(),
-	jwt.WithAudience(j.aud),
-	jwt.WithIssuer(j.iss),
-	jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+		jwt.WithExpirationRequired(),
+		jwt.WithAudience(j.aud),
+		jwt.WithIssuer(j.iss),
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 }

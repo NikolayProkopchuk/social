@@ -12,7 +12,7 @@ type CommentPayload struct {
 
 func (app *application) createCommentHandler(w http.ResponseWriter, r *http.Request) {
 	user := app.getUserFromContext(r)
-	post := getPostFromCtx(r)
+	post := app.getPostFromContext(r)
 	commentPayload := &CommentPayload{}
 	if err := readJSON(w, r, commentPayload); err != nil {
 		app.badRequestError(w, r, err)

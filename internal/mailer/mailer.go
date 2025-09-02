@@ -3,8 +3,8 @@ package mailer
 import "embed"
 
 const (
-	fromName = "GopherSocial"
-	maxRetries = 3
+	fromName           = "GopherSocial"
+	maxRetries         = 3
 	UserInviteTemplate = "user_inivatation.tmpl"
 )
 

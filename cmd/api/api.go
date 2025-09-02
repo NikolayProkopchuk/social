@@ -18,21 +18,21 @@ import (
 var version = "0.0.1"
 
 type application struct {
-	config config
-	store  *store.Storage
-	logger *zap.SugaredLogger
-	mailer mailer.Client
-	authenticator   auth.Authenticator
+	config        config
+	store         *store.Storage
+	logger        *zap.SugaredLogger
+	mailer        mailer.Client
+	authenticator auth.Authenticator
 }
 
 type config struct {
-	address string
-	db      *dbConfig
-	env     string
-	apiUrl  string
-	mail    *mailConfig
+	address     string
+	db          *dbConfig
+	env         string
+	apiUrl      string
+	mail        *mailConfig
 	frontednURL string
-	auth    *authConfig
+	auth        *authConfig
 }
 
 type dbConfig struct {
@@ -45,15 +45,15 @@ type dbConfig struct {
 type mailConfig struct {
 	sendgrid  sendgridConfig
 	fromEmail string
-	exp time.Duration
+	exp       time.Duration
 }
 
 type sendgridConfig struct {
-	apiKey    string
+	apiKey string
 }
 
 type authConfig struct {
-	basic basicAuth
+	basic    basicAuth
 	tokenCfg tokenConfig
 }
 
@@ -91,8 +91,8 @@ func (app *application) mount() http.Handler {
 			r.Route("/{postID}", func(r chi.Router) {
 				r.Use(app.postsContextMiddleware)
 				r.Get("/", app.getPostHandler)
-				r.Patch("/", app.updatePostHandler)
-				r.Delete("/", app.deletePostHandler)
+				r.Patch("/", app.postOwnershipMiddleware("moderator", app.updatePostHandler))
+				r.Delete("/", app.postOwnershipMiddleware("admin", app.deletePostHandler))
 
 				r.Route("/comments", func(r chi.Router) {
 					r.Post("/", app.createCommentHandler)

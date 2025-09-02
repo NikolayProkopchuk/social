@@ -22,7 +22,7 @@ import (
 //	@Accept			json
 //	@Produce		json
 //	@Param			payload	body		RegisterUserPayload	true	"User credentials"
-//	@Success		201		{object}	UserWithToken		"User registered"
+//	@Success		201		{object}	store.User			"User registered"
 //	@Failure		400		{object}	error
 //	@Failure		500		{object}	error
 //	@Router			/authentication/user [post]
@@ -61,10 +61,10 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 	isProdEnv := app.config.env == "prodaction"
 	vars := struct {
-		username   string
+		username      string
 		activationUrl string
 	}{
-		username:  user.Username,
+		username:      user.Username,
 		activationUrl: app.config.frontednURL + "/activate?code=" + plainInviteCode,
 	}
 
@@ -73,7 +73,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		app.internalServerError(w, r, err)
 		return
 	}
-	
+
 	if err := app.jsonResponse(w, http.StatusCreated, user); err != nil {
 		app.internalServerError(w, r, err)
 		return
@@ -112,21 +112,21 @@ func (app *application) createTokenHandler(w http.ResponseWriter, r *http.Reques
 
 	user, err := app.store.Users.GetByEmail(r.Context(), payload.Email)
 	if err != nil {
-			switch {
-			case errors.Is(err, store.ErrNotFound):
-				app.unauthorizedError(w, r, err)
-				return
-			default:
-				app.internalServerError(w, r, err)
-			}
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			app.unauthorizedError(w, r, err)
 			return
+		default:
+			app.internalServerError(w, r, err)
+		}
+		return
 	}
 	log.Printf("User found: %+v", user)
 	if err := user.Password.Compare(payload.Password); err != nil {
 		app.unauthorizedError(w, r, err)
 		return
 	}
-	
+
 	claims := jwt.MapClaims{
 		"sub": user.ID,
 		"aud": app.config.auth.tokenCfg.audience,

@@ -10,16 +10,16 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func (app *application) basicAuthMiddleware() func (http.Handler) http.Handler {
+func (app *application) basicAuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		username, password, ok := r.BasicAuth()
-		if !ok || username != app.config.auth.basic.username || password != app.config.auth.basic.password {
-			app.unauthorizedBasicError(w, r, fmt.Errorf("unauthorized"))
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+			username, password, ok := r.BasicAuth()
+			if !ok || username != app.config.auth.basic.username || password != app.config.auth.basic.password {
+				app.unauthorizedBasicError(w, r, fmt.Errorf("unauthorized"))
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
 
@@ -54,10 +54,33 @@ func (app *application) authTokentMiddleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		user, err := app.store.Users.GetByID(ctx, userID)
 		if err != nil {
+			app.logger.Warn(err)
 			app.unauthorizedError(w, r, fmt.Errorf("user not found"))
 			return
 		}
 		ctx = context.WithValue(ctx, userContextKey, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (app *application) postOwnershipMiddleware(roleName string, next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.getUserFromContext(r)
+		post := app.getPostFromContext(r)
+		if post.UserID == user.ID {
+			next.ServeHTTP(w, r)
+			return
+		}
+		role, err := app.store.Roles.GetByName(r.Context(), roleName)
+		if err != nil {
+			app.internalServerError(w, r, err)
+			return
+		}
+
+		if user.Role.Level >= role.Level {
+			next.ServeHTTP(w, r)
+			return
+		}
+		app.resourceForbiddenError(w, r, fmt.Errorf("post modification is allowed only for owner or users with %s role", roleName))
 	})
 }

@@ -15,6 +15,7 @@ type User struct {
 	Username  string    `json:"username"`
 	Email     string    `json:"email"`
 	Password  password  `json:"-"`
+	Role      Role      `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -44,14 +45,16 @@ func (s *UserStore) create(ctx context.Context, trx *sql.Tx, user *User) error {
 	ctx, cancel := context.WithTimeout(ctx, QueryTimoutDuration)
 	defer cancel()
 	query := `
-INSERT INTO users (username, email, password) VALUES ($1, $2, $3)
+INSERT INTO users (username, email, password, role_id) VALUES ($1, $2, $3, $4)
 RETURNING id, created_at`
 	err := trx.QueryRowContext(
 		ctx,
 		query,
 		user.Username,
 		user.Email,
-		user.Password.hash).Scan(
+		user.Password.hash,
+		user.Role.ID,
+	).Scan(
 		&user.ID,
 		&user.CreatedAt)
 	if err != nil {
@@ -68,7 +71,9 @@ func (s *UserStore) GetByID(ctx context.Context, id int64) (*User, error) {
 	ctx, cancel := context.WithTimeout(ctx, QueryTimoutDuration)
 	defer cancel()
 	query := `
-SELECT id, username, email, created_at FROM users WHERE id = $1`
+SELECT u.id, u.username, u.email, u.created_at, r.id, r.name, r.description, r.level
+FROM users u
+JOIN roles r ON u.role_id = r.id WHERE u.id = $1`
 	user := &User{}
 	err := s.db.QueryRowContext(
 		ctx,
@@ -77,7 +82,11 @@ SELECT id, username, email, created_at FROM users WHERE id = $1`
 		&user.ID,
 		&user.Username,
 		&user.Email,
-		&user.CreatedAt)
+		&user.CreatedAt,
+		&user.Role.ID,
+		&user.Role.Name,
+		&user.Role.Description,
+		&user.Role.Level)
 
 	if err != nil {
 		switch {
@@ -94,7 +103,10 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error)
 	ctx, cancel := context.WithTimeout(ctx, QueryTimoutDuration)
 	defer cancel()
 	query := `
-SELECT id, username, email, password, created_at FROM users WHERE email = $1`
+SELECT u.id, u.username, u.email, u.password, u.created_at, r.id, r.name, r.description, r.level
+FROM users u
+JOIN roles r ON u.role_id = r.id
+WHERE u.email = $1`
 	user := &User{}
 	err := s.db.QueryRowContext(
 		ctx,
@@ -104,7 +116,11 @@ SELECT id, username, email, password, created_at FROM users WHERE email = $1`
 		&user.Username,
 		&user.Email,
 		&user.Password.hash,
-		&user.CreatedAt)
+		&user.CreatedAt,
+		&user.Role.ID,
+		&user.Role.Name,
+		&user.Role.Description,
+		&user.Role.Level)
 
 	if err != nil {
 		switch {

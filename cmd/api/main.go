@@ -46,10 +46,10 @@ func main() {
 		},
 		env: env.GetString("ENV", "dev"),
 		mail: &mailConfig{
-			exp: 24 * time.Hour,
+			exp:       24 * time.Hour,
 			fromEmail: env.GetString("FROM_EMAIL", ""),
 			sendgrid: sendgridConfig{
-				apiKey:   env.GetString("API_KEY", ""),
+				apiKey: env.GetString("API_KEY", ""),
 			},
 		},
 		frontednURL: env.GetString("FRONTEND_URL", "http://localhost:4000"),
@@ -91,11 +91,11 @@ func main() {
 	authenticator := auth.NewJWTAuthenticator(cfg.auth.tokenCfg.secret, cfg.auth.tokenCfg.issuer, cfg.auth.tokenCfg.issuer)
 
 	a := application{
-		config: cfg,
-		store:  store.NewStorage(d),
-		logger: logger,
-		mailer: mailerClient,
-		authenticator:   authenticator,
+		config:        cfg,
+		store:         store.NewStorage(d),
+		logger:        logger,
+		mailer:        mailerClient,
+		authenticator: authenticator,
 	}
 	mux := a.mount()
 	logger.Fatal(a.run(mux))
