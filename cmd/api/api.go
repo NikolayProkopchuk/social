@@ -9,6 +9,7 @@ import (
 	"github.com/NikolayProkopchuk/social/internal/auth"
 	"github.com/NikolayProkopchuk/social/internal/mailer"
 	"github.com/NikolayProkopchuk/social/internal/store"
+	"github.com/NikolayProkopchuk/social/internal/store/cache"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -23,6 +24,7 @@ type application struct {
 	logger        *zap.SugaredLogger
 	mailer        mailer.Client
 	authenticator auth.Authenticator
+	cache         *cache.Storage
 }
 
 type config struct {
@@ -33,6 +35,7 @@ type config struct {
 	mail        *mailConfig
 	frontednURL string
 	auth        *authConfig
+	redis       *redisConfig
 }
 
 type dbConfig struct {
@@ -67,6 +70,13 @@ type tokenConfig struct {
 type basicAuth struct {
 	username string
 	password string
+}
+
+type redisConfig struct {
+	addr     string
+	password string
+	db       int
+	enabled  bool
 }
 
 func (app *application) mount() http.Handler {
@@ -104,7 +114,7 @@ func (app *application) mount() http.Handler {
 			r.Put("/active", app.activateUserHandler)
 			r.Route("/{userID}", func(r chi.Router) {
 				r.Use(app.authTokentMiddleware)
-				r.Get("/", app.getUserHandler)
+				r.Get("/", app.userOwnershipMiddleware("moderator", app.getUserHandler))
 
 				r.Put("/follow", app.followUserHandler)
 				r.Put("/unfollow", app.unfollowUserHandler)

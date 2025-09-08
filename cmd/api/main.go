@@ -10,6 +10,8 @@ import (
 	"github.com/NikolayProkopchuk/social/internal/env"
 	"github.com/NikolayProkopchuk/social/internal/mailer"
 	"github.com/NikolayProkopchuk/social/internal/store"
+	"github.com/NikolayProkopchuk/social/internal/store/cache"
+	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 )
 
@@ -44,6 +46,12 @@ func main() {
 			maxIdleCons: env.GetInt("DB_MAX_IDLE_CONS", 10),
 			maxIdleTime: env.GetString("DB_MAX_IDLE_TIME", "15m"),
 		},
+		redis: &redisConfig{
+			enabled:  env.GetBool("REDIS_ENABLED", true),
+			addr:     env.GetString("REDIS_ADDR", "localhost:6379"),
+			password: env.GetString("REDIS_PASSWORD", ""),
+			db:       env.GetInt("REDIS_DB", 0),
+		},
 		env: env.GetString("ENV", "dev"),
 		mail: &mailConfig{
 			exp:       24 * time.Hour,
@@ -66,7 +74,6 @@ func main() {
 			},
 		},
 	}
-
 	logger := zap.Must(zap.NewProduction()).Sugar()
 	defer logger.Sync()
 
@@ -87,6 +94,12 @@ func main() {
 	}
 	logger.Info("DB connected")
 
+	var redis *redis.Client
+	if cfg.redis.enabled {
+		redis = cache.NewRedisClient(cfg.redis.addr, cfg.redis.password, cfg.redis.db)
+		logger.Info("Redis client initialized")
+	}
+
 	mailerClient := mailer.NewSendGridMailer(cfg.mail.fromEmail, cfg.mail.sendgrid.apiKey)
 	authenticator := auth.NewJWTAuthenticator(cfg.auth.tokenCfg.secret, cfg.auth.tokenCfg.issuer, cfg.auth.tokenCfg.issuer)
 
@@ -96,6 +109,7 @@ func main() {
 		logger:        logger,
 		mailer:        mailerClient,
 		authenticator: authenticator,
+		cache:         cache.NewRedisStorage(redis),
 	}
 	mux := a.mount()
 	logger.Fatal(a.run(mux))
