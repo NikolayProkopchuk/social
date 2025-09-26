@@ -20,6 +20,9 @@ func (cache *userCache) Get(ctx context.Context, id int64) (*store.User, error) 
 	key := fmt.Sprintf("user-%d", id)
 	data, err := cache.client.Get(ctx, key).Result()
 	if err != nil {
+		if err == redis.Nil {
+			return nil, store.ErrNotFound
+		}
 		return nil, err
 	}
 	var user store.User

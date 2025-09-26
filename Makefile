@@ -2,6 +2,10 @@ include .envrc
 MIGRATIONS_PATH = ./cmd/migrate/migrations
 DB_URL = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 
+.PHONY: test
+test:
+	@go test -v -cover ./...
+
 .PHONY: migrate-create
 migrate-create:
 	@migrate create -seq -ext sql -dir $(MIGRATIONS_PATH) $(filter-out $@,$(MAKECMDGOALS))

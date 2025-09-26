@@ -13,8 +13,8 @@ func NewRedisClient(addr, password string, db int) *redis.Client {
 	return redis.NewClient(opts)
 }
 
-func NewRedisStorage(client *redis.Client) *Storage {
-	return &Storage{
+func NewRedisStorage(client *redis.Client) *Cache {
+	return &Cache{
 		Users: &userCache{client: client},
 	}
 }

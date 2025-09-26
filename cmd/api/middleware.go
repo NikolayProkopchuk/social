@@ -9,7 +9,6 @@ import (
 
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -97,8 +96,8 @@ func (app *application) getUser(ctx context.Context, userID int64) (*store.User,
 		app.logger.Infow("User found in cache", "userID", userID)
 		return user, nil
 	}
-	if err != redis.Nil {
-		app.logger.Errorw("Failed to fetch user from cache", "userID", userID, "error", err)
+	if err != store.ErrNotFound {
+		app.logger.Errorw("Failed to get user from cache", "userID", userID, "error", err)
 	}
 	app.logger.Infow("User not found in cache, fetching from DB", "userID", userID)
 	user, err = app.store.Users.GetByID(ctx, userID)
@@ -122,12 +121,17 @@ func (app *application) userOwnershipMiddleware(roleName string, next http.Handl
 			app.badRequestError(w, r, err)
 			return
 		}
+		if user.ID == userID {
+			next.ServeHTTP(w, r)
+			return
+		}
 		role, err := app.store.Roles.GetByName(r.Context(), roleName)
 		if err != nil {
 			app.internalServerError(w, r, err)
 			return
 		}
-		if user.ID != userID && user.Role.Level < role.Level {
+		app.logger.Infow("Checking user role", "userID", user.ID, "user.Role", user.Role, "requiredRole", role)
+		if user.Role.Level < role.Level {
 			app.resourceForbiddenError(w, r, fmt.Errorf("user resource access is allowed only for owner or users with %s role", roleName))
 			return
 		}

@@ -24,7 +24,7 @@ type application struct {
 	logger        *zap.SugaredLogger
 	mailer        mailer.Client
 	authenticator auth.Authenticator
-	cache         *cache.Storage
+	cache         *cache.Cache
 }
 
 type config struct {
