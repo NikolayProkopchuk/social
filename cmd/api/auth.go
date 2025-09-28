@@ -36,9 +36,15 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		app.badRequestError(w, r, err)
 		return
 	}
+	userRole, err := app.store.Roles.GetByName(r.Context(), "user")
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
 	user := &store.User{
 		Username: payload.Username,
 		Email:    payload.Email,
+		Role:     *userRole,
 	}
 
 	if err := user.Password.Set(payload.Password); err != nil {
@@ -61,11 +67,11 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 	isProdEnv := app.config.env == "prodaction"
 	vars := struct {
-		username      string
-		activationUrl string
+		Username      string
+		ActivationURL string
 	}{
-		username:      user.Username,
-		activationUrl: app.config.frontednURL + "/activate?code=" + plainInviteCode,
+		Username:      user.Username,
+		ActivationURL: app.config.frontednURL + "/activate?code=" + plainInviteCode,
 	}
 
 	if err := app.mailer.Send(mailer.UserInviteTemplate, user.Username, user.Email, vars, !isProdEnv); err != nil {
