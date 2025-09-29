@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NikolayProkopchuk/social/internal/ratelimiter"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/NikolayProkopchuk/social/internal/store/cache"
 	"github.com/golang-jwt/jwt/v5"
@@ -13,60 +14,68 @@ import (
 )
 
 var claims = jwt.MapClaims{
-		"sub": 42,
-		"aud": "test_aud",
-		"iss": "test_iss",
-		"exp": time.Now().Add(time.Hour).Unix(),
-		"iat": time.Now().Unix(),
-		"nbf": time.Now().Unix()}
+	"sub": 42,
+	"aud": "test_aud",
+	"iss": "test_iss",
+	"exp": time.Now().Add(time.Hour).Unix(),
+	"iat": time.Now().Unix(),
+	"nbf": time.Now().Unix()}
 
 var expectedModeratorResponseBody = map[string]any{
-				"data": map[string]any{
-					"id":         float64(1),
-					"email":      "test.moderator@mail.com",       
-					"username":   "TestModeratorUser",
-					"created_at": "0001-01-01T00:00:00Z",
-					"role": map[string]any{
-						"id":   float64(2),
-						"name": "moderator",
-						"level": float64(50),
-						"description": "Moderator",
-					},
-				},
-			}
+	"data": map[string]any{
+		"id":         float64(1),
+		"email":      "test.moderator@mail.com",
+		"username":   "TestModeratorUser",
+		"created_at": "0001-01-01T00:00:00Z",
+		"role": map[string]any{
+			"id":          float64(2),
+			"name":        "moderator",
+			"level":       float64(50),
+			"description": "Moderator",
+		},
+	},
+}
 
 var expectedUser1ResponseBody = map[string]any{
-				"data": map[string]any{
-					"id":         float64(2),
-					"email":      "test@mail.com",       
-					"username":   "TestUser",
-					"created_at": "0001-01-01T00:00:00Z",
-					"role": map[string]any{
-						"id":   float64(3),
-						"name": "user",
-						"level": float64(10),
-						"description": "Regular User",
-					},
-				},
-			}
+	"data": map[string]any{
+		"id":         float64(2),
+		"email":      "test@mail.com",
+		"username":   "TestUser",
+		"created_at": "0001-01-01T00:00:00Z",
+		"role": map[string]any{
+			"id":          float64(3),
+			"name":        "user",
+			"level":       float64(10),
+			"description": "Regular User",
+		},
+	},
+}
 
 var expectedUser3ResponseBody = map[string]any{
-				"data": map[string]any{
-					"id":         float64(3),
-					"email":      "test3@mail.com",       
-					"username":   "TestUser3",
-					"created_at": "0001-01-01T00:00:00Z",
-					"role": map[string]any{
-						"id":   float64(3),
-						"name": "user",
-						"level": float64(10),
-						"description": "Regular User",
-					},
-				},
-			}
+	"data": map[string]any{
+		"id":         float64(3),
+		"email":      "test3@mail.com",
+		"username":   "TestUser3",
+		"created_at": "0001-01-01T00:00:00Z",
+		"role": map[string]any{
+			"id":          float64(3),
+			"name":        "user",
+			"level":       float64(10),
+			"description": "Regular User",
+		},
+	},
+}
 
 func TestGetUser(t *testing.T) {
-	app := newTestApp(t, false)
+	cfg := config{
+		redis: &redisConfig{
+			enabled: false,
+		},
+		rateLimiter: &ratelimiter.Config{
+			Enabled: false,
+		},
+	}
+	app := newTestApp(t, cfg)
 	mux := app.mount()
 
 	token, err := app.authenticator.GenerateToken(claims)
@@ -96,7 +105,7 @@ func TestGetUser(t *testing.T) {
 			userID:              2,
 			expectedStatus:      http.StatusOK,
 			authorizationHeader: authHeader,
-			expectedBody: expectedUser1ResponseBody,
+			expectedBody:        expectedUser1ResponseBody,
 		},
 	}
 
@@ -124,7 +133,15 @@ func TestGetUser(t *testing.T) {
 func TestGetUserStorageCalls(t *testing.T) {
 
 	t.Run("should call cashe twice when it is enabled and no call the store", func(t *testing.T) {
-		app := newTestApp(t, true)
+		cfg := config{
+			redis: &redisConfig{
+				enabled: true,
+			},
+			rateLimiter: &ratelimiter.Config{
+				Enabled: false,
+			},
+		}
+		app := newTestApp(t, cfg)
 		mux := app.mount()
 		token, err := app.authenticator.GenerateToken(claims)
 		if err != nil {
@@ -151,7 +168,15 @@ func TestGetUserStorageCalls(t *testing.T) {
 	})
 
 	t.Run("should not call cache when it is not enabled and call the user store twice and does not call role store if user get himself", func(t *testing.T) {
-		app := newTestApp(t, false)
+		cfg := config{
+			redis: &redisConfig{
+				enabled: false,
+			},
+			rateLimiter: &ratelimiter.Config{
+				Enabled: false,
+			},
+		}
+		app := newTestApp(t, cfg)
 		mux := app.mount()
 		token, err := app.authenticator.GenerateToken(claims)
 		if err != nil {
@@ -181,7 +206,15 @@ func TestGetUserStorageCalls(t *testing.T) {
 	})
 
 	t.Run("should not call cashe when it is not enabled and call the user store twice and role store once if user moderator and get another user", func(t *testing.T) {
-		app := newTestApp(t, false)
+		cfg := config{
+			redis: &redisConfig{
+				enabled: false,
+			},
+			rateLimiter: &ratelimiter.Config{
+				Enabled: false,
+			},
+		}
+		app := newTestApp(t, cfg)
 		mux := app.mount()
 		token, err := app.authenticator.GenerateToken(claims)
 		if err != nil {
@@ -211,7 +244,15 @@ func TestGetUserStorageCalls(t *testing.T) {
 	})
 
 	t.Run("should put user in cache and return it", func(t *testing.T) {
-		app := newTestApp(t, true)
+		cfg := config{
+			redis: &redisConfig{
+				enabled: true,
+			},
+			rateLimiter: &ratelimiter.Config{
+				Enabled: false,
+			},
+		}
+		app := newTestApp(t, cfg)
 		mux := app.mount()
 
 		token, err := app.authenticator.GenerateToken(claims)

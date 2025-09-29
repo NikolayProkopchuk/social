@@ -138,3 +138,17 @@ func (app *application) userOwnershipMiddleware(roleName string, next http.Handl
 		next.ServeHTTP(w, r)
 	})
 }
+
+func (app *application) rateLimiterMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !app.config.rateLimiter.Enabled {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if allow, retryAfter := app.rateLimiter.Allow(r.RemoteAddr); !allow {
+			app.rateLimitExceededError(w, r, retryAfter.String())
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

@@ -13,6 +13,7 @@ import (
 	"github.com/NikolayProkopchuk/social/docs" // This line is used by Swag CLI to generate docs
 	"github.com/NikolayProkopchuk/social/internal/auth"
 	"github.com/NikolayProkopchuk/social/internal/mailer"
+	"github.com/NikolayProkopchuk/social/internal/ratelimiter"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/NikolayProkopchuk/social/internal/store/cache"
 	"github.com/go-chi/chi/v5"
@@ -30,6 +31,7 @@ type application struct {
 	mailer        mailer.Client
 	authenticator auth.Authenticator
 	cache         *cache.Cache
+	rateLimiter   ratelimiter.Limiter
 }
 
 type config struct {
@@ -41,6 +43,7 @@ type config struct {
 	frontednURL string
 	auth        *authConfig
 	redis       *redisConfig
+	rateLimiter *ratelimiter.Config
 }
 
 type dbConfig struct {
@@ -95,8 +98,9 @@ func (app *application) mount() http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(app.rateLimiterMiddleware)
 	r.Route("/v1", func(r chi.Router) {
-		r.With(app.basicAuthMiddleware()).Get("/health", app.healthCheckHandler)
+		r.Get("/health", app.healthCheckHandler)
 
 		docsUrl := fmt.Sprintf("%s/swagger/doc.json", app.config.address)
 		r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL(docsUrl)))

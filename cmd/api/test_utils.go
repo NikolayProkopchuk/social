@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/NikolayProkopchuk/social/internal/auth"
+	"github.com/NikolayProkopchuk/social/internal/ratelimiter"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/NikolayProkopchuk/social/internal/store/cache"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func newTestApp(t *testing.T, cacheEnabled bool) *application {
+func newTestApp(t *testing.T, config config) *application {
 	t.Helper()
 
 	logger := zap.Must(zap.NewDevelopment()).Sugar()
@@ -61,11 +62,8 @@ func newTestApp(t *testing.T, cacheEnabled bool) *application {
 		store:         mockStore,
 		cache:         mockCache,
 		authenticator: auth.NewMockAuthenticator(),
-		config: config{
-			redis: &redisConfig{
-				enabled: cacheEnabled,
-			},
-		},
+		config:        config,
+		rateLimiter:   ratelimiter.NewFixedWindowRateLimiter(config.rateLimiter.RequestsPerTimeFrame, config.rateLimiter.TimeFrame),
 	}
 
 	return app

@@ -9,6 +9,7 @@ import (
 	"github.com/NikolayProkopchuk/social/internal/db"
 	"github.com/NikolayProkopchuk/social/internal/env"
 	"github.com/NikolayProkopchuk/social/internal/mailer"
+	"github.com/NikolayProkopchuk/social/internal/ratelimiter"
 	"github.com/NikolayProkopchuk/social/internal/store"
 	"github.com/NikolayProkopchuk/social/internal/store/cache"
 	"github.com/go-redis/redis/v8"
@@ -73,6 +74,11 @@ func main() {
 				exp:      time.Hour,
 			},
 		},
+		rateLimiter: &ratelimiter.Config{
+			Enabled:              env.GetBool("RATE_LIMITER_ENABLED", true),
+			RequestsPerTimeFrame: env.GetInt("RATE_LIMITER_REQUESTS", 5),
+			TimeFrame:            time.Duration(env.GetInt("RATE_LIMITER_TIME_FRAME_SEC", 5)) * time.Second,
+		},
 	}
 	logger := zap.Must(zap.NewProduction()).Sugar()
 	defer logger.Sync()
@@ -102,6 +108,7 @@ func main() {
 
 	mailerClient := mailer.NewSendGridMailer(cfg.mail.fromEmail, cfg.mail.sendgrid.apiKey)
 	authenticator := auth.NewJWTAuthenticator(cfg.auth.tokenCfg.secret, cfg.auth.tokenCfg.issuer, cfg.auth.tokenCfg.issuer)
+	ratelimiter := ratelimiter.NewFixedWindowRateLimiter(cfg.rateLimiter.RequestsPerTimeFrame, cfg.rateLimiter.TimeFrame)
 
 	a := application{
 		config:        cfg,
@@ -110,6 +117,7 @@ func main() {
 		mailer:        mailerClient,
 		authenticator: authenticator,
 		cache:         cache.NewRedisStorage(redis),
+		rateLimiter:   ratelimiter,
 	}
 	mux := a.mount()
 	logger.Fatal(a.run(mux))
