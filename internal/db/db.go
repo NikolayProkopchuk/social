@@ -16,6 +16,9 @@ func New(url string, maxOpenCons int, maxIdleCons int, maxIdleTimeStr string) (*
 	db.SetMaxOpenConns(maxOpenCons)
 	db.SetMaxIdleConns(maxIdleCons)
 	idleTime, err := time.ParseDuration(maxIdleTimeStr)
+	if err != nil {
+		return nil, err
+	}
 	db.SetConnMaxIdleTime(idleTime)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
