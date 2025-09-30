@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"expvar"
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/NikolayProkopchuk/social/internal/auth"
@@ -119,6 +121,13 @@ func main() {
 		cache:         cache.NewRedisStorage(redis),
 		rateLimiter:   ratelimiter,
 	}
+	expvar.NewString("version").Set(version)
+	expvar.Publish("database", expvar.Func(func() any {
+		return d.Stats()
+	}))
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return fmt.Sprintf("%d", runtime.NumGoroutine())
+	}))
 	mux := a.mount()
 	logger.Fatal(a.run(mux))
 }
